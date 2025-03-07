@@ -126,16 +126,28 @@ class PageReport:
 
 
 def _pdf_report(local_pdf_path: str, page_num: int) -> PageReport:
+    #读取指定路径的PDF文档
     reader = PdfReader(local_pdf_path)
+    #获取指定页码的页面内容
     page = reader.pages[page_num - 1]
+    #从页面中提取资源（resources），特别是其中的外部对象（XObjects），这些通常包括页面上的图像和其他嵌入对象
     resources = page.get("/Resources", {})
     xobjects = resources.get("/XObject", {})
+    #定义存储文本对象列表，图片对象列表：
     text_elements, image_elements = [], []
-
+    #处理页面中的文本元素：
     def visitor_body(text, cm, tm, font_dict, font_size):
+    #text: 文本字符串
+    #cm: 当前变换矩阵。这是一个数学矩阵，用于将用户空间坐标转换为设备空间坐标。
+    #tm: 文本矩阵。与CTM类似，但专门用于文本对象。它影响的是文本相对于当前变换矩阵的位置
+        print(f"CM: {cm}, TM: {tm}")  # 打印变换矩阵
+        print(f"Font: {font_dict}, Font Size: {font_size}")  # 打印字体信息
         txt2user = _mult(tm, cm)
-        text_elements.append(TextElement(text, txt2user[4], txt2user[5]))
-
+        x, y = txt2user[4], txt2user[5]
+        print(f"Text: {text}, Position: ({x}, {y})")
+        print("——————————————————————————————————————————")
+        text_elements.append(TextElement(text, x, y))
+    #处理页面中的图片元素：
     def visitor_op(op, args, cm, tm):
         if op == b"Do":
             xobject_name = args[0]
