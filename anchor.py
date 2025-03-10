@@ -126,49 +126,38 @@ class PageReport:
 
 
 def _pdf_report(local_pdf_path: str, page_num: int) -> PageReport:
-    #读取指定路径的PDF文档
-    reader = PdfReader(local_pdf_path)
-    #获取指定页码的页面内容
-    page = reader.pages[page_num - 1]
-    #从页面中提取资源（resources），特别是其中的外部对象（XObjects），这些通常包括页面上的图像和其他嵌入对象
-    resources = page.get("/Resources", {})
-    xobjects = resources.get("/XObject", {})
-    #定义存储文本对象列表，图片对象列表：
-    text_elements, image_elements = [], []
-    #处理页面中的文本元素：
-    def visitor_body(text, cm, tm, font_dict, font_size):
-    #text: 文本字符串
-    #cm: 当前变换矩阵。这是一个数学矩阵，用于将用户空间坐标转换为设备空间坐标。
-    #tm: 文本矩阵。与CTM类似，但专门用于文本对象。它影响的是文本相对于当前变换矩阵的位置
-        print(f"CM: {cm}, TM: {tm}")  # 打印变换矩阵
-        print(f"Font: {font_dict}, Font Size: {font_size}")  # 打印字体信息
-        txt2user = _mult(tm, cm)
-        x, y = txt2user[4], txt2user[5]
-        print(f"Text: {text}, Position: ({x}, {y})")
-        print("——————————————————————————————————————————")
-        text_elements.append(TextElement(text, x, y))
-    #处理页面中的图片元素：
-    def visitor_op(op, args, cm, tm):
-        if op == b"Do":
-            xobject_name = args[0]
-            xobject = xobjects.get(xobject_name)
-            if xobject and xobject["/Subtype"] == "/Image":
-                # Compute image bbox
-                # The image is placed according to the CTM
-                _width = xobject.get("/Width")
-                _height = xobject.get("/Height")
-                x0, y0 = _transform_point(0, 0, cm)
-                x1, y1 = _transform_point(1, 1, cm)
-                image_elements.append(ImageElement(xobject_name, BoundingBox(min(x0, x1), min(y0, y1), max(x0, x1), max(y0, y1))))
+    import fitz
+    # 打开PDF文档
+    document = fitz.open(local_pdf_path)
+    # 获取指定页码的页面内容
+    page = document.load_page(page_num - 1)
+    # 页面高度，用于坐标转换
+    page_height = page.rect.height
+    # 获取页面上的所有文本块
+    text_blocks = page.get_text("dict")["blocks"]
+    text_elements = []
+    for block in text_blocks:
+        if block['type'] == 0:  # 文本块
+            for line in block['lines']:
+                for span in line['spans']:
+                    bbox = span['bbox']
+                    original_y0 = bbox[1]
+                    original_y1 = bbox[3]
+                    text_elements.append(
+                        TextElement(span['text'], (bbox[0] + bbox[2]) / 2, (original_y0 + original_y1) / 2))
 
-    page.extract_text(visitor_text=visitor_body, visitor_operand_before=visitor_op)
-
+    # 获取页面上的所有图片
+    image_elements = []
+    for img_index, img in enumerate(page.get_images(full=True)):
+        xref = img[0]
+        base_image = document.extract_image(xref)
+        bbox = page.get_image_rects(xref)[0]
+        image_elements.append(ImageElement(f"image_{img_index}", BoundingBox.from_rectangle(bbox)))
     return PageReport(
-        mediabox=BoundingBox.from_rectangle(page.mediabox),
+        mediabox=BoundingBox.from_rectangle(page.rect),
         text_elements=text_elements,
         image_elements=image_elements,
     )
-
 
 def _merge_image_elements(images: List[ImageElement], tolerance: float = 0.5) -> List[ImageElement]:
     n = len(images)
