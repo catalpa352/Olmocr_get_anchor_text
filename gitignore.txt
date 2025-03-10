@@ -1,0 +1,10 @@
+# Ignore IntelliJ IDEA files
+.idea/
+
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Ignore Mac OS X Finder files
+.DS_Store
