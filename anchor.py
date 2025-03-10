@@ -124,7 +124,8 @@ class PageReport:
     text_elements: List[TextElement]
     image_elements: List[ImageElement]
 
-
+# 全局变量，用于保存 visitor_op 中的 tm 值
+current_tm = None
 def _pdf_report(local_pdf_path: str, page_num: int) -> PageReport:
     reader = PdfReader(local_pdf_path)
     page = reader.pages[page_num - 1]
@@ -133,10 +134,30 @@ def _pdf_report(local_pdf_path: str, page_num: int) -> PageReport:
     text_elements, image_elements = [], []
 
     def visitor_body(text, cm, tm, font_dict, font_size):
+        global current_tm
+        if current_tm is not None:
+            tm = current_tm
+        print("tm:",tm)
+        print("cm:",cm)
+        print("text:",text)
         txt2user = _mult(tm, cm)
+        print("x:",txt2user[4],"y:",txt2user[5])
+        print("——————————————————————————")
         text_elements.append(TextElement(text, txt2user[4], txt2user[5]))
 
     def visitor_op(op, args, cm, tm):
+        global current_tm
+        current_tm = tm  # 保存当前的 tm 值
+        print("66666666666")
+        print("op:", op)
+        print("args:", args)
+        print("tm:", tm)
+        print("cm:", cm)
+        if len(args) > 0:
+            xobject_name = args[0]
+            xobject = xobjects.get(xobject_name)
+            print("xobject:", xobject)
+        print("66666666666")
         if op == b"Do":
             xobject_name = args[0]
             xobject = xobjects.get(xobject_name)
