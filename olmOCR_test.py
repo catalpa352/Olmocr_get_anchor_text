@@ -22,7 +22,7 @@ from anchor import get_anchor_text
 # image_base64 = render_pdf_to_base64png("test_pdf_file/attention-is-all-you-need.pdf", 3, target_longest_image_dim=1024)
 
 # Build the prompt, using document metadata
-anchor_text = get_anchor_text("test/ppt_to_pdf.pdf", 3, pdf_engine="pdfreport", target_length=5000)
+anchor_text = get_anchor_text("test/report.pdf", 8, pdf_engine="pdfreport", target_length=5000)
 print(anchor_text)
 prompt = build_finetuning_prompt(anchor_text)
 
